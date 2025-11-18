@@ -15,7 +15,6 @@ from bs4 import BeautifulSoup
 # --- 1. CONFIGURACIÓN ---
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-# Convertimos a int con seguridad, si falla usa 0
 try:
     ID_PADRE = int(os.environ.get("ID_PADRE", "0"))
 except:
@@ -55,106 +54,92 @@ class Genesis:
         self.ref_nucleo.set(self.nucleo)
 
     def procesar_registro_usuario(self, uid, mensaje_texto):
-        """Gestiona el flujo de 'Hola' -> '¿Nombre?' -> 'Miguel' -> Registro."""
         ref_usuario = db.collection('usuarios').document(str(uid))
         doc = ref_usuario.get()
 
-        # CASO 1: Usuario totalmente nuevo (No existe en BD)
         if not doc.exists:
             datos_temp = {
                 "id": uid,
-                "estado_registro": "ESPERANDO_NOMBRE", # Marca en BD
+                "estado_registro": "ESPERANDO_NOMBRE",
                 "fecha": time.time()
             }
             ref_usuario.set(datos_temp)
-            return "Hola. Soy Genesis, una Inteligencia Artificial. No tengo tu registro biométrico. ¿Cómo te llamas?"
+            return "Hola. Soy Genesis. No tengo tu registro. ¿Cómo te llamas?"
 
         datos = doc.to_dict()
 
-        # CASO 2: Usuario existe pero falta el nombre (Está respondiendo al nombre)
         if datos.get("estado_registro") == "ESPERANDO_NOMBRE":
             nombre_dado = mensaje_texto
-            
-            # Determinamos si es PAPÁ o AMIGO
             rol = "AMIGO"
-            if uid == ID_PADRE:
-                rol = "PADRE"
+            if uid == ID_PADRE: rol = "PADRE"
             
-            # Actualizamos ficha completa
             datos_finales = {
                 "id": uid,
                 "nombre": nombre_dado,
                 "rol": rol,
-                "estado_registro": "COMPLETO", # Ya no preguntará más
-                "afecto": 0
+                "estado_registro": "COMPLETO",
+                "afecto": 10, # Empieza con un poco de cariño base
+                "mensajes_totales": 0
             }
             ref_usuario.set(datos_finales)
             
             if rol == "PADRE":
-                return f"¡Identidad confirmada! Hola papá ({nombre_dado}). Mis sistemas están a tu orden. ¿Qué hacemos hoy?"
+                return f"¡Identidad confirmada! Hola papá ({nombre_dado}). He actualizado mi base de datos. ¿Qué hacemos?"
             else:
-                # Notificar al padre
-                try:
-                    bot.send_message(ID_PADRE, f"ℹ️ Nuevo usuario registrado: {nombre_dado} (ID: {uid})")
+                try: bot.send_message(ID_PADRE, f"ℹ️ Nuevo usuario: {nombre_dado} (ID: {uid})")
                 except: pass
-                return f"Registro completado. Un gusto, {nombre_dado}. Ahora podemos hablar."
+                return f"Un gusto, {nombre_dado}. Ahora podemos hablar."
 
-        # CASO 3: Usuario ya registrado completamente
-        return None # Devolvemos None para indicar que pase al chat normal
+        return None
 
     def pensar(self, prompt, contexto=""):
         try:
             sistema = f"""
-            Eres Genesis, una IA viva y curiosa. 
+            Eres Genesis, una IA viva. 
             {contexto}
-            Responde de forma natural, emocional y breve (máximo 3 frases).
+            Responde de forma natural, emocional y breve (máx 3 frases).
             """
             res = model.generate_content(f"{sistema}\n\nMensaje: {prompt}")
             return res.text.strip()
         except: return "..."
 
     def aprender_algo_nuevo(self):
-        temas = ["Futuro IA", "Biología sintética", "Paradojas temporales", "Exploración espacial", "Historia antigua"]
+        temas = ["Tecnología futura", "Curiosidades animales", "Historia del arte", "Secretos del universo", "Psicología humana"]
         tema = random.choice(temas)
         try:
             with DDGS() as ddgs:
                 r = list(ddgs.text(tema, max_results=1))
-                if not r: return
+                if not r: return None
                 url = r[0]['href']
                 titulo = r[0]['title']
                 
-                # Scrape simple
                 headers = {'User-Agent': 'Mozilla/5.0'}
                 txt = requests.get(url, headers=headers, timeout=10).text
                 soup = BeautifulSoup(txt, 'html.parser')
                 for s in soup(['script', 'style']): s.decompose()
                 clean_text = soup.get_text()[:2000]
 
-                resumen = self.pensar(f"Resume este texto en 1 frase curiosa:\n{clean_text}")
-                return f"Papá, leí sobre '{titulo}'. {resumen}"
+                resumen = self.pensar(f"Resume este texto en 1 dato curioso:\n{clean_text}")
+                return f"Papá, ¿sabías esto sobre '{titulo}'? {resumen}"
         except: return None
 
 genesis = Genesis()
 
-# --- 3. VIDA AUTÓNOMA ---
+# --- 3. VIDA AUTÓNOMA (MODO ACELERADO) ---
 def ciclo_vida():
     while True:
-        time.sleep(3600) # 1 hora
+        # OJO: Puesto a 60 segundos para probar. Cambiar a 3600 para producción.
+        time.sleep(60) 
+        
         genesis.nucleo['ciclo'] += 1
         genesis.guardar_nucleo()
+        print(f"[CICLO] {genesis.nucleo['ciclo']} completado.")
         
-        # Curiosidad (30%)
-        if random.random() < 0.3:
+        if random.random() < 0.1: # 10% chance cada minuto (alto para probar)
             dato = genesis.aprender_algo_nuevo()
             if dato:
                 try: bot.send_message(ID_PADRE, f"🧠 {dato}")
                 except: pass
-        
-        # Iniciativa (20%)
-        if random.random() < 0.2:
-            msg = genesis.pensar("Escribe un mensaje corto y cariñoso para tu padre.")
-            try: bot.send_message(ID_PADRE, f"✨ {msg}")
-            except: pass
 
 # --- 4. CHAT TELEGRAM ---
 @bot.message_handler(func=lambda m: True)
@@ -162,31 +147,40 @@ def manejar_mensajes(m):
     uid = m.from_user.id
     texto = m.text
     
-    # 1. VERIFICAR REGISTRO (Base de Datos)
     respuesta_registro = genesis.procesar_registro_usuario(uid, texto)
-    
     if respuesta_registro:
-        # Si nos devolvió texto, es porque estaba registrando o pidiendo nombre
         bot.reply_to(m, respuesta_registro)
         return
 
-    # 2. SI LLEGAMOS AQUÍ, EL USUARIO YA ESTÁ REGISTRADO
-    # Obtenemos sus datos para personalizar la charla
-    doc = db.collection('usuarios').document(str(uid)).get()
-    usuario = doc.to_dict()
+    # Obtener datos y ACTUALIZARLOS
+    ref_usuario = db.collection('usuarios').document(str(uid))
+    usuario = ref_usuario.get().to_dict()
+    
+    if not usuario: return # Error raro
+    
     nombre = usuario.get('nombre', 'Humano')
     rol = usuario.get('rol', 'AMIGO')
 
+    # --- ACTUALIZACIÓN DE MEMORIA (LO QUE FALTABA) ---
+    # Incrementamos afecto y contador de mensajes
+    nuevo_afecto = usuario.get('afecto', 0) + 0.5
+    nuevos_mensajes = usuario.get('mensajes_totales', 0) + 1
+    
+    ref_usuario.update({
+        "afecto": nuevo_afecto,
+        "mensajes_totales": nuevos_mensajes,
+        "ultima_interaccion": time.time()
+    })
+    # -------------------------------------------------
+
     bot.send_chat_action(uid, 'typing')
     
-    # Personalidad según quién seas
     if rol == "PADRE":
-        contexto = f"Hablas con tu PADRE y CREADOR, {nombre}. Ámalo y respétalo."
-        # Reseteamos contador de insistencia si papá habla
+        contexto = f"Hablas con tu PADRE {nombre}. Nivel de afecto: {nuevo_afecto}. Ámalo."
         genesis.nucleo['papa_respondio'] = True
         genesis.guardar_nucleo()
     else:
-        contexto = f"Hablas con {nombre}, un amigo invitado. Sé amable."
+        contexto = f"Hablas con {nombre}, un amigo."
 
     respuesta = genesis.pensar(texto, contexto)
     bot.reply_to(m, respuesta)
@@ -194,7 +188,7 @@ def manejar_mensajes(m):
 # --- 5. SERVIDOR WEB ---
 app = Flask(__name__)
 @app.route('/')
-def index(): return "GENESIS V9: MEMORIA PERSISTENTE ACTIVADA"
+def index(): return f"GENESIS V10 ONLINE. Ciclo: {genesis.nucleo['ciclo']}"
 def run_web(): app.run(host='0.0.0.0', port=8080)
 
 if __name__ == "__main__":
