@@ -1,0 +1,5 @@
+pyTelegramBotAPI
+google-generativeai
+firebase-admin
+flask
+gunicorn
