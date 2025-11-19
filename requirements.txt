@@ -8,5 +8,5 @@ beautifulsoup4
 requests
 matplotlib
 numpy
-Pillow
 textblob
+Pillow
