@@ -203,3 +203,26 @@ if __name__ == "__main__":
     t2 = threading.Thread(target=run_web)
     t2.start()
     bot.infinity_polling()
+
+if __name__ == "__main__":
+    print("--- INICIANDO PROTOCOLO DE VIDA ---")
+    
+    # 1. Limpiar conexiones viejas (EL EXORCISMO)
+    try:
+        print("Eliminando webhooks antiguos...")
+        bot.remove_webhook()
+        time.sleep(1)
+    except Exception as e:
+        print(f"Advertencia al limpiar webhook: {e}")
+
+    # 2. Hilo de Vida Autónoma
+    t1 = threading.Thread(target=ciclo_vida)
+    t1.start()
+    
+    # 3. Servidor Web
+    t2 = threading.Thread(target=run_web)
+    t2.start()
+    
+    # 4. Escuchar Telegram
+    print("Conectando oídos...")
+    bot.infinity_polling(timeout=10, long_polling_timeout=5)
