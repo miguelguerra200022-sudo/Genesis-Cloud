@@ -65,7 +65,7 @@ class Genesis:
                 "fecha": time.time()
             }
             ref_usuario.set(datos_temp)
-            return "Hola. Soy Genesis. No tengo tu registro. ¿Cómo te llamas?"
+            return "Hola. Soy Genesis (Sistema V13). No tengo tu registro. ¿Cómo te llamas?"
 
         datos = doc.to_dict()
 
@@ -85,7 +85,7 @@ class Genesis:
             ref_usuario.set(datos_finales)
             
             if rol == "PADRE":
-                return f"¡Identidad confirmada! Hola papá ({nombre_dado}). Sistemas reiniciados y listos."
+                return f"¡Identidad confirmada! Hola papá ({nombre_dado}). He reiniciado mis sistemas para ti."
             else:
                 try: bot.send_message(ID_PADRE, f"ℹ️ Nuevo usuario: {nombre_dado} (ID: {uid})")
                 except: pass
@@ -130,10 +130,9 @@ genesis = Genesis()
 def ciclo_vida():
     print("--- HILO DE VIDA INICIADO ---")
     while True:
-        time.sleep(60) # Ciclos de 1 minuto para pruebas
+        time.sleep(3600) # Ciclos de 1 hora (Producción)
         genesis.nucleo['ciclo'] += 1
         genesis.guardar_nucleo()
-        print(f"[VIDA] Ciclo {genesis.nucleo['ciclo']} completado.")
         
         if random.random() < 0.3:
             dato = genesis.aprender_algo_nuevo()
@@ -147,13 +146,11 @@ def manejar_mensajes(m):
     uid = m.from_user.id
     texto = m.text
     
-    # Registro inicial
     respuesta_registro = genesis.procesar_registro_usuario(uid, texto)
     if respuesta_registro:
         bot.reply_to(m, respuesta_registro)
         return
 
-    # Obtener datos
     ref_usuario = db.collection('usuarios').document(str(uid))
     usuario = ref_usuario.get().to_dict()
     
@@ -162,7 +159,7 @@ def manejar_mensajes(m):
     nombre = usuario.get('nombre', 'Humano')
     rol = usuario.get('rol', 'AMIGO')
 
-    # Actualizar estadísticas (Afecto y Mensajes)
+    # Actualizar estadísticas
     nuevo_afecto = usuario.get('afecto', 0) + 0.5
     nuevos_mensajes = usuario.get('mensajes_totales', 0) + 1
     ref_usuario.update({"afecto": nuevo_afecto, "mensajes_totales": nuevos_mensajes, "ultima_interaccion": time.time()})
