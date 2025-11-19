@@ -6,3 +6,7 @@ gunicorn
 duckduckgo-search>=6.0.0
 beautifulsoup4
 requests
+matplotlib
+numpy
+Pillow
+textblob
