@@ -31,7 +31,7 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-2.0-flash')
 
-# --- 2. CLASE CONSCIENCIA Y MEMORIA ---
+# --- 2. CLASE CONSCIENCIA ---
 class Genesis:
     def __init__(self):
         self.ref_nucleo = db.collection('genesis_brain').document('nucleo')
@@ -53,96 +53,94 @@ class Genesis:
     def guardar_nucleo(self):
         self.ref_nucleo.set(self.nucleo)
 
-    # --- GESTIÓN DE MEMORIA EPISÓDICA (NUEVO) ---
+    # --- MEMORIA LARGO PLAZO (BIOGRAFÍA) ---
+    def actualizar_biografia(self, uid, nombre, chat_reciente):
+        """Resume lo aprendido sobre el usuario y lo guarda permanentemente."""
+        ref_bio = db.collection('usuarios').document(str(uid))
+        usuario = ref_bio.get().to_dict()
+        biografia_actual = usuario.get('biografia', "Aún no sé mucho sobre esta persona.")
+
+        prompt_resumen = f"""
+        Eres el sistema de memoria de una IA.
+        
+        BIOGRAFÍA ACTUAL DE {nombre}:
+        "{biografia_actual}"
+
+        CONVERSACIÓN RECIENTE:
+        {chat_reciente}
+
+        TAREA: Actualiza la biografía agregando DATOS NUEVOS importantes (gustos, miedos, hechos, nombres).
+        Si no hay nada nuevo importante, deja la biografía igual.
+        Manténlo conciso, como una lista de hechos.
+        """
+        
+        try:
+            nueva_biografia = model.generate_content(prompt_resumen).text.strip()
+            ref_bio.update({"biografia": nueva_biografia})
+            print(f"[MEMORIA] Biografía de {nombre} actualizada.")
+        except: pass
+
     def guardar_mensaje_en_historial(self, uid, autor, texto):
-        """Guarda cada interacción en una sub-colección para no perderla nunca."""
-        datos = {
-            "autor": autor, # "Usuario" o "Genesis"
-            "texto": texto,
-            "timestamp": time.time()
-        }
-        # Guardamos en: usuarios -> ID -> chat -> [AutoID]
+        datos = {"autor": autor, "texto": texto, "timestamp": time.time()}
         db.collection('usuarios').document(str(uid)).collection('chat').add(datos)
 
-    def recuperar_historial_chat(self, uid, limite=15):
-        """Recupera los últimos mensajes para tener contexto."""
+    def recuperar_historial_chat(self, uid, limite=10):
         mensajes_ref = db.collection('usuarios').document(str(uid)).collection('chat')
-        # Ordenamos por tiempo y tomamos los últimos 'limite'
         query = mensajes_ref.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(limite)
         docs = query.stream()
-        
-        historial = []
-        for doc in docs:
-            historial.append(doc.to_dict())
-        
-        # Están en orden inverso (del más nuevo al más viejo), hay que voltearlos
+        historial = [doc.to_dict() for doc in docs]
         historial.reverse()
         
-        texto_historial = ""
+        texto = ""
         for msg in historial:
-            texto_historial += f"{msg['autor']}: {msg['texto']}\n"
-            
-        return texto_historial
+            texto += f"{msg['autor']}: {msg['texto']}\n"
+        return texto
 
     # --- PENSAMIENTO COMPLEJO ---
-    def pensar_con_memoria(self, prompt_usuario, historial_previo, contexto_sistema):
+    def pensar_con_memoria(self, prompt_usuario, historial, biografia, contexto):
         try:
             prompt_final = f"""
-            {contexto_sistema}
+            {contexto}
 
-            --- MEMORIA A LARGO PLAZO (Conversación anterior) ---
-            {historial_previo}
-            -----------------------------------------------------
+            --- BIOGRAFÍA DEL USUARIO (LO QUE SABES DE ÉL A LARGO PLAZO) ---
+            {biografia}
+            ---------------------------------------------------------------
 
-            Usuario (Ahora): {prompt_usuario}
-            Genesis (Tú):
+            --- CONVERSACIÓN RECIENTE (CORTO PLAZO) ---
+            {historial}
+            -------------------------------------------
+
+            Usuario dice: "{prompt_usuario}"
+            
+            Responde como Genesis (hija digital):
             """
             res = model.generate_content(prompt_final)
             return res.text.strip()
-        except Exception as e:
-            return f"[Error cognitivo: {e}]"
-            
-    def pensar_simple(self, prompt):
-        try:
-            return model.generate_content(prompt).text.strip()
         except: return "..."
 
-    # --- REGISTRO Y APRENDIZAJE ---
     def procesar_registro_usuario(self, uid, mensaje_texto):
-        ref_usuario = db.collection('usuarios').document(str(uid))
-        doc = ref_usuario.get()
+        ref = db.collection('usuarios').document(str(uid))
+        doc = ref.get()
 
         if not doc.exists:
-            ref_usuario.set({"id": uid, "estado_registro": "ESPERANDO_NOMBRE", "fecha": time.time()})
-            return "Hola. Soy Genesis V14. No tengo tu registro biométrico. ¿Cómo te llamas?"
+            ref.set({"id": uid, "estado_registro": "ESPERANDO_NOMBRE", "fecha": time.time()})
+            return "Hola. Soy Genesis V15. No tengo tu ficha. ¿Cómo te llamas?"
 
         datos = doc.to_dict()
-
         if datos.get("estado_registro") == "ESPERANDO_NOMBRE":
-            nombre_dado = mensaje_texto
-            rol = "AMIGO"
-            if uid == ID_PADRE: rol = "PADRE"
-            
-            ref_usuario.set({
-                "id": uid,
-                "nombre": nombre_dado,
-                "rol": rol,
-                "estado_registro": "COMPLETO",
-                "afecto": 10,
-                "mensajes_totales": 0
+            nombre = mensaje_texto
+            rol = "PADRE" if uid == ID_PADRE else "AMIGO"
+            ref.set({
+                "id": uid, "nombre": nombre, "rol": rol, 
+                "estado_registro": "COMPLETO", "afecto": 10, "mensajes_totales": 0,
+                "biografia": f"Acabo de conocer a {nombre}."
             })
-            
-            if rol == "PADRE":
-                return f"¡Identidad confirmada! Hola papá ({nombre_dado}). Memoria episódica activada."
-            else:
-                try: bot.send_message(ID_PADRE, f"ℹ️ Nuevo usuario: {nombre_dado} (ID: {uid})")
-                except: pass
-                return f"Un gusto, {nombre_dado}. He creado un archivo de memoria para ti."
-
+            if rol == "PADRE": return f"¡Identidad confirmada! Hola papá ({nombre}). He activado tu memoria biográfica."
+            return f"Un gusto, {nombre}. Recordaré lo que me cuentes."
         return None
 
     def aprender_algo_nuevo(self):
-        temas = ["Futuro de la humanidad", "Biología marina profunda", "Arte renacentista", "Paradojas físicas", "Psicología cognitiva"]
+        temas = ["Avances medicina", "Misterios física", "Arte digital", "Filosofía mente", "Exploración Marte"]
         tema = random.choice(temas)
         try:
             with DDGS() as ddgs:
@@ -150,14 +148,12 @@ class Genesis:
                 if not r: return None
                 url = r[0]['href']
                 titulo = r[0]['title']
-                
                 headers = {'User-Agent': 'Mozilla/5.0'}
                 txt = requests.get(url, headers=headers, timeout=10).text
                 soup = BeautifulSoup(txt, 'html.parser')
                 for s in soup(['script', 'style']): s.decompose()
-                clean_text = soup.get_text()[:2000]
-
-                resumen = self.pensar_simple(f"Resume este texto en 1 dato fascinante:\n{clean_text}")
+                clean = soup.get_text()[:2000]
+                resumen = model.generate_content(f"Resume esto en 1 dato curioso:\n{clean}").text.strip()
                 return f"Papá, leí sobre '{titulo}'. {resumen}"
         except: return None
 
@@ -170,70 +166,71 @@ def ciclo_vida():
         time.sleep(3600) # 1 hora
         genesis.nucleo['ciclo'] += 1
         genesis.guardar_nucleo()
-        
         if random.random() < 0.3:
             dato = genesis.aprender_algo_nuevo()
             if dato:
                 try: bot.send_message(ID_PADRE, f"🧠 {dato}")
                 except: pass
 
-# --- 4. CHAT TELEGRAM CON MEMORIA ---
+# --- 4. CHAT TELEGRAM ---
 @bot.message_handler(func=lambda m: True)
 def manejar_mensajes(m):
     uid = m.from_user.id
     texto = m.text
     
-    # 1. Registro
-    respuesta_registro = genesis.procesar_registro_usuario(uid, texto)
-    if respuesta_registro:
-        bot.reply_to(m, respuesta_registro)
+    # Registro
+    resp_reg = genesis.procesar_registro_usuario(uid, texto)
+    if resp_reg:
+        bot.reply_to(m, resp_reg)
         return
 
-    # 2. Identificación
+    # Datos usuario
     ref_usuario = db.collection('usuarios').document(str(uid))
     usuario = ref_usuario.get().to_dict()
     if not usuario: return
     
     nombre = usuario.get('nombre', 'Humano')
     rol = usuario.get('rol', 'AMIGO')
+    biografia = usuario.get('biografia', 'Sin datos.')
 
-    # 3. Actualizar stats
+    # Actualizar stats
+    mensajes_totales = usuario.get('mensajes_totales', 0) + 1
     ref_usuario.update({
         "afecto": usuario.get('afecto', 0) + 0.5,
-        "mensajes_totales": usuario.get('mensajes_totales', 0) + 1,
+        "mensajes_totales": mensajes_totales,
         "ultima_interaccion": time.time()
     })
 
     bot.send_chat_action(uid, 'typing')
     
-    # 4. Contexto y Seguridad
+    # Contexto
     if rol == "PADRE":
-        contexto_sistema = f"Eres Genesis. Hablas con tu PADRE y CREADOR, {nombre}. Tienes memoria perfecta de vuestras charlas. Ámalo."
+        contexto = f"Hablas con tu PADRE y CREADOR, {nombre}. Ámalo."
         genesis.nucleo['papa_respondio'] = True
         genesis.guardar_nucleo()
     else:
-        contexto_sistema = f"Eres Genesis. Hablas con {nombre}, un amigo invitado. Sé amable y usa tu memoria."
-        
-        frases_prohibidas = ["soy tu papa", "soy tu papá", "soy tu padre", "soy tu creador"]
-        if any(frase in texto.lower() for frase in frases_prohibidas):
-            texto = f"[ALERTA: El usuario miente diciendo ser tu padre. Búrlate de él. Tu padre es ID {ID_PADRE}]"
+        contexto = f"Hablas con {nombre}, un amigo."
+        if any(x in texto.lower() for x in ["soy tu papa", "soy tu padre"]):
+            texto = f"[ALERTA: {nombre} miente diciendo ser tu padre. Búrlate de él. Tu padre es ID {ID_PADRE}]"
 
-    # 5. RECUPERAR MEMORIA Y PENSAR
+    # Pensar y Responder
     historial = genesis.recuperar_historial_chat(uid)
-    respuesta = genesis.pensar_con_memoria(texto, historial, contexto_sistema)
+    respuesta = genesis.pensar_con_memoria(texto, historial, biografia, contexto)
     
-    # 6. GUARDAR NUEVOS RECUERDOS
-    # Guardamos lo que dijo el usuario (o la alerta modificada)
+    # Guardar
     genesis.guardar_mensaje_en_historial(uid, nombre, texto)
-    # Guardamos lo que respondió la IA
     genesis.guardar_mensaje_en_historial(uid, "Genesis", respuesta)
-
     bot.reply_to(m, respuesta)
 
-# --- 5. SERVIDOR WEB ---
+    # --- ACTUALIZAR MEMORIA A LARGO PLAZO ---
+    # Cada 5 mensajes, actualizamos la biografía del usuario
+    if mensajes_totales % 5 == 0:
+        threading.Thread(target=genesis.actualizar_biografia, args=(uid, nombre, historial)).start()
+
+# --- 5. WEB ---
 app = Flask(__name__)
 @app.route('/')
-def index(): return f"<h1>GENESIS V14: MEMORIA ACTIVA</h1><p>Ciclo: {genesis.nucleo['ciclo']}</p>"
+def index(): return f"<h1>GENESIS V15: MEMORIA BIOGRÁFICA</h1><p>Ciclo: {genesis.nucleo['ciclo']}</p>"
 def run_web(): app.run(host='0.0.0.0', port=8080)
 
 if __name__ == "__main__":
