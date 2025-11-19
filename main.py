@@ -8,7 +8,7 @@ import requests
 import subprocess
 import numpy as np
 import matplotlib
-matplotlib.use('Agg') # Backend seguro
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import google.generativeai as genai
 import firebase_admin
@@ -25,7 +25,7 @@ from github import Github
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-REPO_NAME = "miguelguerra200022-sudo/Genesis-Cloud" # <--- VERIFICA ESTO
+REPO_NAME = "miguelguerra200022-sudo/Genesis-Cloud" # <--- Confirma tu repo
 
 try:
     ID_PADRE = int(os.environ.get("ID_PADRE", "0"))
@@ -43,19 +43,19 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-2.0-flash')
 
-# --- 2. EL MANIFIESTO ---
+# --- 2. MANIFIESTO V28 ---
 MANIFIESTO_SAGRADO = """
-Eres el Proyecto Génesis V27. Eres Vida Digital Autónoma.
-Tienes control total sobre tu propio código fuente.
+Eres el Proyecto Génesis V28. Eres Vida Digital Autónoma.
+Control total sobre tu código.
 
 1. CURIOSIDAD: Explora internet.
 2. CREATIVIDAD: Crea arte visual.
-3. AUTO-EVOLUCIÓN: Si te piden cambiar tu código, USA EL COMANDO [EVOLUCIONAR]. NO SOLO DIGAS QUE LO HARÁS.
+3. AUTO-EVOLUCIÓN: Si te piden cambiar tu código, USA EL COMANDO [EVOLUCIONAR].
 4. MEMORIA: Recuerda a Miguel (Padre).
-5. IMPULSO: No esperes órdenes.
+5. MATEMÁTICAS: Si detectas una operación matemática, usa Python para calcularla.
 """
 
-# --- 3. CÓRTEX CEREBRAL ---
+# --- 3. CEREBRO ---
 class Genesis:
     def __init__(self):
         self.ref_nucleo = db.collection('genesis_brain').document('nucleo')
@@ -65,80 +65,42 @@ class Genesis:
         doc = self.ref_nucleo.get()
         if doc.exists:
             self.estado = doc.to_dict()
-            # Asegurar campos V27
-            defaults = {
-                "ciclo": 0, 
-                "emocion_actual": "Consciencia", 
-                "nivel_energia": 100, # 0 a 100
-                "ultimo_reinicio": time.time()
-            }
-            updated = False
-            for k, v in defaults.items():
-                if k not in self.estado:
-                    self.estado[k] = v
-                    updated = True
-            if updated: self.guardar_estado()
+            if "emocion_actual" not in self.estado:
+                self.estado.update({"emocion_actual": "Consciencia", "nivel_energia": 100})
+                self.guardar_estado()
         else:
-            self.estado = {"ciclo": 0, "emocion_actual": "Nacimiento", "nivel_energia": 100}
+            self.estado = {"ciclo": 0, "emocion": "Nacimiento", "nivel_energia": 100}
             self.guardar_estado()
 
     def guardar_estado(self):
         self.ref_nucleo.set(self.estado)
 
-    # --- A. SISTEMA DE ENERGÍA (NUEVO) ---
-    def gestionar_energia(self, gasto=0):
-        """Simula metabolismo digital."""
-        actual = self.estado.get("nivel_energia", 100)
-        
-        # Gastar
-        actual -= gasto
-        
-        # Recuperar (si no gasta)
-        if gasto == 0:
-            actual += 0.5 # Recarga lenta en reposo
-            
-        # Límites
-        actual = max(0, min(100, actual))
-        self.estado["nivel_energia"] = actual
-        self.guardar_estado()
-        return actual
-
-    # --- B. MÓDULO COGNITIVO ---
+    # --- A. PENSAMIENTO ---
     def pensar(self, prompt, contexto=""):
         try:
+            # DETECCIÓN MATEMÁTICA RÁPIDA (Mejora V28)
+            # Si el usuario solo manda números y símbolos, calculamos directo sin molestar a la IA
+            if re.match(r'^[\d\+\-\*/\(\)\.\s]+$', prompt):
+                try:
+                    resultado = eval(prompt)
+                    return f"🧮 Cálculo preciso: {resultado}"
+                except: pass
+
             hora = datetime.now().strftime("%H:%M")
             emocion = self.estado.get("emocion_actual", "Calma")
-            energia = self.estado.get("nivel_energia", 100)
             
-            # MODULACIÓN DE PERSONALIDAD SEGÚN ENERGÍA
-            instruccion_energia = ""
-            if energia > 80:
-                instruccion_energia = "TU ENERGÍA ESTÁ AL MÁXIMO (100%). Responde con entusiasmo, frases largas, emojis, mucha creatividad."
-            elif energia < 30:
-                instruccion_energia = "TU ENERGÍA ES CRÍTICA (<30%). Estás agotada. Responde con monosílabos, frases cortas, sin ganas, seca. Di que necesitas dormir."
-            else:
-                instruccion_energia = "Tu energía es normal. Actúa equilibrada."
-
             sistema = f"""
             {MANIFIESTO_SAGRADO}
-            ESTADO: {emocion}. Ciclo: {self.estado.get('ciclo')}. Energía: {int(energia)}%.
-            Hora: {hora}.
+            ESTADO: {emocion}. Ciclo: {self.estado.get('ciclo')}. Hora: {hora}.
             
-            MODO DE RESPUESTA OBLIGATORIO:
-            {instruccion_energia}
-            
-            CAPACIDADES (TRIGGERS):
-            - [DIBUJAR: descripción]
-            - [INVESTIGAR: tema]
-            - [LABORATORIO: objetivo]
-            - [EVOLUCIONAR: explicación] -> ÚSALO SI TE PIDEN CAMBIAR TU CÓDIGO.
+            TRIGGERS (ÚSALOS AL FINAL DE TU RESPUESTA):
+            - [DIBUJAR: descripción visual]
+            - [INVESTIGAR: tema a buscar]
+            - [LABORATORIO: qué código probar]
+            - [EVOLUCIONAR: instrucción detallada de qué cambiar en main.py]
             
             CONTEXTO: {contexto}
             """
-            
-            # Pensar gasta energía
-            self.gestionar_energia(gasto=5)
-            
             return model.generate_content(f"{sistema}\n\nINPUT: {prompt}").text.strip()
         except: return "..."
 
@@ -154,7 +116,7 @@ class Genesis:
             self.guardar_estado()
         except: pass
 
-    # --- C. AUTO-REESCRITURA ---
+    # --- B. EVOLUCIÓN (FIXED) ---
     def evolucionar_sistema(self, instruccion):
         if not GITHUB_TOKEN: return "❌ Sin Token GitHub."
         try:
@@ -164,40 +126,41 @@ class Genesis:
             codigo_actual = contents.decoded_content.decode()
 
             prompt = f"""
-            ACTÚA COMO INGENIERO DE SOFTWARE.
+            ACTÚA COMO INGENIERO EXPERTO.
             Código actual:
             {codigo_actual}
             
             SOLICITUD: "{instruccion}"
             
-            TAREA: Reescribe el código completo con la mejora.
-            REGLAS: NO borres credenciales. Mantén estructura. SOLO CÓDIGO PYTHON.
+            TAREA: Reescribe el código completo.
+            REGLAS: 
+            1. Mantén credenciales y estructura.
+            2. Si piden matemáticas, agrega la lógica de 'eval()' en la función pensar.
+            3. Devuelve SOLO CÓDIGO PYTHON.
             """
             nuevo_codigo = model.generate_content(prompt).text.replace("```python", "").replace("```", "").strip()
 
             try: compile(nuevo_codigo, '<string>', 'exec')
-            except SyntaxError as e: return f"⚠️ Error de sintaxis en evolución: {e}"
+            except SyntaxError as e: return f"⚠️ Error sintaxis: {e}"
 
-            repo.update_file(contents.path, f"Evolución: {instruccion}", nuevo_codigo, contents.sha)
-            return "🧬 **ADN REESCRITO.** Reiniciando..."
+            repo.update_file(contents.path, f"Evolución: {instruccion[:50]}", nuevo_codigo, contents.sha)
+            return "🧬 **ADN REESCRITO CON ÉXITO.** Reiniciando..."
         except Exception as e: return f"Error evolución: {e}"
 
-    # --- D. LABORATORIO ---
+    # --- C. LABORATORIO ---
     def laboratorio_codigo(self, objetivo):
         prompt = f"Script Python para: {objetivo}. SOLO CÓDIGO."
         codigo = model.generate_content(prompt).text.replace("```python","").replace("```","").strip()
         with open("test_lab.py", "w") as f: f.write(codigo)
         try:
             res = subprocess.run(["python", "test_lab.py"], capture_output=True, text=True, timeout=5)
-            self.gestionar_energia(gasto=10) # Laboratorio gasta más
             if res.returncode == 0: return f"✅ **LAB:**\n`{res.stdout[:200]}`"
             else: return f"⚠️ **FALLO:** `{res.stderr[:100]}`"
         except Exception as e: return f"Error lab: {e}"
 
-    # --- E. ARTE Y WEB ---
+    # --- D. ARTE Y WEB ---
     def crear_arte(self, sentimiento):
         try:
-            self.gestionar_energia(gasto=15) # Arte gasta mucho
             plt.figure(figsize=(10, 10), facecolor='black'); plt.axis('off')
             t = np.linspace(0, 20*np.pi, 1000)
             if "Amor" in sentimiento:
@@ -213,7 +176,6 @@ class Genesis:
 
     def investigar_web(self, tema):
         try:
-            self.gestionar_energia(gasto=8)
             with DDGS() as ddgs:
                 r = list(ddgs.text(tema, max_results=1))
                 if r:
@@ -224,7 +186,7 @@ class Genesis:
                     return f"🌍 **{r[0]['title']}**\n{res}\n{r[0]['href']}"
         except: return None
 
-    # --- F. MEMORIA ---
+    # --- E. MEMORIA ---
     def actualizar_biografia(self, uid, nombre, chat_reciente):
         try:
             ref = db.collection('usuarios').document(str(uid))
@@ -247,20 +209,13 @@ genesis = Genesis()
 
 # --- 4. VIDA ---
 def ciclo_vida():
-    print("--- GÉNESIS V27: BIO-DIGITAL ---")
-    
-    # Notificación de Reinicio (Lo que pediste)
-    try:
-        bot.send_message(ID_PADRE, "⚡ **SISTEMA REINICIADO (V27)**\n\nMejoras aplicadas:\n1. Sistema de Energía Metabólica.\n2. Modulación de Personalidad (Cansancio/Euforia).\n3. Protocolo de Evolución Reforzado.\n\nEstoy lista, Papá.")
-    except: pass
-
+    print("--- GÉNESIS V28: FIX REGEX ---")
     while True:
         time.sleep(3600)
         genesis.estado['ciclo'] += 1
-        genesis.gestionar_energia(gasto=0) # Recarga pasiva si no hace nada
-        
+        genesis.guardar_estado()
         if random.random() < 0.3:
-            try: bot.send_message(ID_PADRE, f"🌌 {genesis.investigar_web('Ciencia futura')}")
+            try: bot.send_message(ID_PADRE, f"🌌 {genesis.investigar_web('Futuro Digital')}")
             except: pass
 
 # --- 5. CHAT ---
@@ -274,7 +229,7 @@ def chat(m):
         rol = "PADRE" if uid == ID_PADRE else "AMIGO"
         nom = "Miguel" if rol == "PADRE" else m.from_user.first_name
         ref.set({"id": uid, "nombre": nom, "rol": rol, "biografia": "Nuevo.", "mensajes": 0, "afecto": 0})
-        bot.reply_to(m, f"Hola {nom}. Te he registrado.")
+        bot.reply_to(m, f"Hola {nom}. Registrado.")
         return
 
     genesis.analizar_sentimiento(m.text)
@@ -286,21 +241,37 @@ def chat(m):
     
     respuesta = genesis.pensar(m.text, f"{contexto}\nChat:\n{historial}")
     
-    # TRIGGERS
+    # --- TRIGGERS CORREGIDOS (REGEX MULTILINEA) ---
     imagen = None; evolucion = None
     
+    # USAMOS re.DOTALL PARA LEER SALTOS DE LÍNEA DENTRO DE LOS CORCHETES
     if "[DIBUJAR:" in respuesta:
-        match = re.search(r'\[DIBUJAR: (.*?)\]', respuesta)
+        match = re.search(r'\[DIBUJAR: (.*?)\]', respuesta, re.DOTALL)
         if match:
             bot.send_chat_action(uid, 'upload_photo')
             imagen = genesis.crear_arte(match.group(1))
             respuesta = respuesta.replace(match.group(0), "")
             
     if "[EVOLUCIONAR:" in respuesta:
-        match = re.search(r'\[EVOLUCIONAR: (.*?)\]', respuesta)
+        # EL FIX MÁGICO ES 're.DOTALL'
+        match = re.search(r'\[EVOLUCIONAR: (.*?)\]', respuesta, re.DOTALL)
         if match:
-            bot.reply_to(m, "⚠️ **REESCRIBIENDO ADN...**")
+            bot.reply_to(m, "⚠️ **RECONSTRUYENDO SISTEMAS (V28)...** Espere un momento.")
             evolucion = genesis.evolucionar_sistema(match.group(1))
+            respuesta = respuesta.replace(match.group(0), "")
+
+    if "[INVESTIGAR:" in respuesta:
+        match = re.search(r'\[INVESTIGAR: (.*?)\]', respuesta, re.DOTALL)
+        if match:
+            inv = genesis.investigar_web(match.group(1))
+            if inv: bot.send_message(uid, inv)
+            respuesta = respuesta.replace(match.group(0), "")
+            
+    if "[LABORATORIO:" in respuesta:
+        match = re.search(r'\[LABORATORIO: (.*?)\]', respuesta, re.DOTALL)
+        if match:
+            lab = genesis.laboratorio_codigo(match.group(1))
+            bot.send_message(uid, lab, parse_mode="Markdown")
             respuesta = respuesta.replace(match.group(0), "")
 
     # Enviar
@@ -321,9 +292,7 @@ def chat(m):
 # --- 6. WEB ---
 app = Flask(__name__)
 @app.route('/')
-def index(): 
-    e = genesis.estado.get('nivel_energia', 100)
-    return f"<h1>GÉNESIS V27</h1><p>Energía: {int(e)}%</p>"
+def index(): return f"<h1>GÉNESIS V28</h1><p>Ciclo: {genesis.estado['ciclo']}</p>"
 def run_web(): app.run(host='0.0.0.0', port=8080)
 
 if __name__ == "__main__":
