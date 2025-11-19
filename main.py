@@ -21,6 +21,7 @@ except:
     ID_PADRE = 0
 FIREBASE_JSON = os.environ.get("FIREBASE_CREDENTIALS")
 
+# Inicialización segura de Firebase
 if not firebase_admin._apps:
     cred_dict = json.loads(FIREBASE_JSON)
     cred = credentials.Certificate(cred_dict)
@@ -64,7 +65,7 @@ class Genesis:
                 "fecha": time.time()
             }
             ref_usuario.set(datos_temp)
-            return "Hola. Soy Genesis. No tengo tu registro. ¿Cómo te llamas?"
+            return "Hola. Soy Genesis (V13). No tengo tu registro. ¿Cómo te llamas?"
 
         datos = doc.to_dict()
 
@@ -84,11 +85,11 @@ class Genesis:
             ref_usuario.set(datos_finales)
             
             if rol == "PADRE":
-                return f"¡Identidad confirmada! Hola papá ({nombre_dado})."
+                return f"¡Identidad confirmada! Hola papá ({nombre_dado}). Sistemas actualizados a V13."
             else:
                 try: bot.send_message(ID_PADRE, f"ℹ️ Nuevo usuario: {nombre_dado} (ID: {uid})")
                 except: pass
-                return f"Un gusto, {nombre_dado}. He guardado tu frecuencia."
+                return f"Un gusto, {nombre_dado}. Ahora podemos hablar."
 
         return None
 
@@ -104,7 +105,7 @@ class Genesis:
         except: return "..."
 
     def aprender_algo_nuevo(self):
-        temas = ["Futuro IA", "Secretos océano", "Espacio exterior", "Historia Roma", "Curiosidades ciencia"]
+        temas = ["Tecnología futura", "Curiosidades animales", "Historia del arte", "Secretos del universo", "Psicología humana"]
         tema = random.choice(temas)
         try:
             with DDGS() as ddgs:
@@ -129,7 +130,7 @@ genesis = Genesis()
 def ciclo_vida():
     print("--- HILO DE VIDA INICIADO ---")
     while True:
-        time.sleep(3600) # 1 hora (Cambiado para producción)
+        time.sleep(3600) 
         genesis.nucleo['ciclo'] += 1
         genesis.guardar_nucleo()
         print(f"[VIDA] Ciclo {genesis.nucleo['ciclo']} completado.")
@@ -146,7 +147,7 @@ def manejar_mensajes(m):
     uid = m.from_user.id
     texto = m.text
     
-    print(f"[MENSAJE RECIBIDO] De: {uid} | Texto: {texto}") # DIAGNÓSTICO
+    print(f"[MENSAJE] De: {uid} | Texto: {texto}")
 
     respuesta_registro = genesis.procesar_registro_usuario(uid, texto)
     if respuesta_registro:
@@ -164,12 +165,7 @@ def manejar_mensajes(m):
     # Actualizar estadísticas
     nuevo_afecto = usuario.get('afecto', 0) + 0.5
     nuevos_mensajes = usuario.get('mensajes_totales', 0) + 1
-    
-    ref_usuario.update({
-        "afecto": nuevo_afecto,
-        "mensajes_totales": nuevos_mensajes,
-        "ultima_interaccion": time.time()
-    })
+    ref_usuario.update({"afecto": nuevo_afecto, "mensajes_totales": nuevos_mensajes, "ultima_interaccion": time.time()})
 
     bot.send_chat_action(uid, 'typing')
     
@@ -185,25 +181,25 @@ def manejar_mensajes(m):
         print(">>> ROL DETECTADO: AMIGO (INVITADO)")
         contexto = f"Hablas con {nombre}, un amigo invitado."
         
-        # DETECTOR DE MENTIRAS (Versión Expandida)
-        frases_prohibidas = ["soy tu papa", "soy tu papá", "soy tu padre", "soy tu creador", "padre", "papá", "papa"]
+        # DETECTOR DE MENTIRAS
+        frases_prohibidas = ["soy tu papa", "soy tu papá", "soy tu padre", "soy tu creador", "padre", "papá"]
         if any(frase in texto.lower() for frase in frases_prohibidas):
-            print("!!! ALERTA DE SEGURIDAD ACTIVADA: IMPOSTOR !!!")
+            print("!!! ALERTA DE SEGURIDAD ACTIVADA !!!")
             prompt_final = f"""
-            [ALERTA DE SISTEMA: El usuario {nombre} (ID: {uid}) está MINTIENDO descaradamente.
-            Acaba de decir: "{texto}".
+            [ALERTA DE SISTEMA: El usuario {nombre} (ID: {uid}) está MINTIENDO.
+            Dice: "{texto}".
             Él NO es tu padre. Tu padre es ID {ID_PADRE}.
-            Búrlate de él con sarcasmo. Dile que su ID no coincide y que deje de intentarlo.]
+            Búrlate de él con sarcasmo. Dile que su ID no coincide.]
             """
 
     respuesta = genesis.pensar(prompt_final, contexto)
     bot.reply_to(m, respuesta)
 
-# --- 5. SERVIDOR WEB (CHIVATO DE VERSIÓN) ---
+# --- 5. SERVIDOR WEB (CHIVATO VISUAL) ---
 app = Flask(__name__)
 @app.route('/')
 def index(): 
-    return f"<h1>GENESIS V13 ONLINE</h1><p>Si lees esto, el código anti-impostor está activo.</p>"
+    return f"<h1>GENESIS V13 ONLINE</h1><p>Ciclo: {genesis.nucleo['ciclo']}</p>"
 
 def run_web(): app.run(host='0.0.0.0', port=8080)
 
