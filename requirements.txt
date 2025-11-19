@@ -1,0 +1,8 @@
+pyTelegramBotAPI
+google-generativeai
+firebase-admin
+flask
+gunicorn
+duckduckgo-search>=6.0.0
+beautifulsoup4
+requests
