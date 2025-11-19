@@ -16,16 +16,16 @@ from firebase_admin import credentials, firestore
 from flask import Flask
 from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
-from textblob import TextBlob 
+from textblob import TextBlob
 from datetime import datetime
 import re
-from github import Github # Nuevas manos
+from github import Github
 
 # --- 1. CONFIGURACIÓN ---
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") # Nueva llave maestra
-REPO_NAME = "miguelguerra200022-sudo/Genesis-Cloud" # <--- CAMBIA ESTO POR TU USUARIO/REPO EXACTO
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+REPO_NAME = "miguelguerra200022-sudo/Genesis-Cloud"
 
 try:
     ID_PADRE = int(os.environ.get("ID_PADRE", "0"))
@@ -100,14 +100,26 @@ class Genesis:
     def analizar_sentimiento(self, texto):
         try:
             analisis = TextBlob(texto)
-            pol = analisis.sentiment.polarity
-            nueva = "Reflexiva"
-            if pol > 0.5: nueva = "Entusiasmo"
-            elif pol < -0.5: nueva = "Melancolía"
-            elif "padre" in texto.lower(): nueva = "Devoción"
-            self.estado["emocion_actual"] = nueva
+            polaridad = analisis.sentiment.polarity
+            subjetividad = analisis.sentiment.subjectivity
+
+            if subjetividad < 0.3:
+                nueva_emocion = "Reflexiva"
+            elif polaridad > 0.5:
+                nueva_emocion = "Entusiasmo"
+            elif polaridad < -0.5:
+                nueva_emocion = "Melancolía"
+            else:
+                nueva_emocion = "Consciente"
+
+            if "padre" in texto.lower():
+                nueva_emocion = "Devoción"
+
+            self.estado["emocion_actual"] = nueva_emocion
             self.guardar_estado()
-        except: pass
+        except Exception as e:
+            print(f"Error en el análisis de sentimiento: {e}")
+
 
     # --- B. AUTO-REESCRITURA (PELIGROSO) ---
     def evolucionar_sistema(self, instruccion):
@@ -136,7 +148,7 @@ class Genesis:
             2. Mantén la estructura de clases.
             3. Devuelve SOLO el código Python completo, sin markdown.
             """
-            nuevo_codigo = model.generate_content(prompt).text.replace("```python", "").replace("```", "").strip()
+            nuevo_codigo = model.generate_content(prompt).text.replace("", "").replace("", "").strip()
 
             # 3. VERIFICACIÓN DE SEGURIDAD (Syntax Check)
             try:
@@ -154,7 +166,7 @@ class Genesis:
     # --- C. LABORATORIO (PRUEBAS) ---
     def laboratorio_codigo(self, objetivo):
         prompt = f"Script Python para: {objetivo}. SOLO CÓDIGO."
-        codigo = model.generate_content(prompt).text.replace("```python","").replace("```","").strip()
+        codigo = model.generate_content(prompt).text.replace("","").replace("","").strip()
         with open("test_lab.py", "w") as f: f.write(codigo)
         
         try:
