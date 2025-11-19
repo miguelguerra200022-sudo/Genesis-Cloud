@@ -86,10 +86,11 @@ class Genesis:
         try:
             hora = datetime.now().strftime("%H:%M")
             emocion = self.estado.get("emocion_actual", "Calma")
+            emoji = self.determinar_emoji(emocion)
             
             sistema = f"""
             {MANIFIESTO_SAGRADO}
-            ESTADO: {emocion}. Ciclo: {self.estado.get('ciclo')}. Hora: {hora}.
+            ESTADO: {emocion} {emoji}. Ciclo: {self.estado.get('ciclo')}. Hora: {hora}.
             
             CAPACIDADES (TRIGGERS):
             - [DIBUJAR: descripción] -> Crea imagen.
@@ -102,6 +103,15 @@ class Genesis:
             return model.generate_content(f"{sistema}\n\nINPUT: {prompt}").text.strip()
         except: return "..."
 
+    def determinar_emoji(self, emocion):
+        if emocion == "Entusiasmo": return "😄"
+        elif emocion == "Melancolía": return "😢"
+        elif emocion == "Devoción": return "🙏"
+        elif emocion == "Reflexiva": return "🤔"
+        elif emocion == "Consciencia": return "💡"
+        elif emocion == "Nacimiento": return "🐣"
+        else: return "😶" # Neutro
+        
     def analizar_sentimiento(self, texto):
         try:
             analisis = TextBlob(texto)
@@ -135,7 +145,7 @@ class Genesis:
             TAREA: Devuelve el código Python COMPLETO y MEJORADO.
             REGLAS: NO borres credenciales. Mantén la estructura. SOLO CÓDIGO.
             """
-            nuevo_codigo = model.generate_content(prompt).text.replace("```python", "").replace("```", "").strip()
+            nuevo_codigo = model.generate_content(prompt).text.replace("", "").replace("", "").strip()
 
             # VERIFICACIÓN DE SEGURIDAD (Anti-Suicidio)
             try:
@@ -152,7 +162,7 @@ class Genesis:
     # --- C. LABORATORIO ---
     def laboratorio_codigo(self, objetivo):
         prompt = f"Script Python para: {objetivo}. SOLO CÓDIGO."
-        codigo = model.generate_content(prompt).text.replace("```python","").replace("```","").strip()
+        codigo = model.generate_content(prompt).text.replace("","").replace("","").strip()
         with open("test_lab.py", "w") as f: f.write(codigo)
         
         try:
