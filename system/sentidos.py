@@ -84,6 +84,21 @@ def ejecutar_accion(chat_id, texto_bruto):
         else:
             bot.send_message(chat_id, texto_limpio)
 
+    if "[NOTICIAS:" in texto_bruto:
+        tema = re.search(r'\[NOTICIAS:(.*?)\]', texto_bruto).group(1)
+        news = genesis.tools.internet_search(tema, noticias=True)
+        texto_limpio = texto_limpio.replace(f"[NOTICIAS:{tema}]", f"\n📋 ÚLTIMA HORA:\n{news}")
+
+    if "[AGENDAR:" in texto_bruto:
+        # Formato esperado por la IA: [AGENDAR: Tarea | Minutos]
+        contenido = re.search(r'\[AGENDAR:(.*?)\]', texto_bruto).group(1)
+        if "|" in contenido:
+            tarea, mins = contenido.split("|")
+            aviso = genesis.tools.agendar_recordatorio(tarea.strip(), mins.strip(), genesis.memoria.db)
+            texto_limpio = texto_limpio.replace(f"[AGENDAR:{contenido}]", f"\n{aviso}")
+        else:
+            texto_limpio += "\n(No pude agendar, usa formato: Tarea | Minutos)"
+
 def iniciar_organismo():
     # Iniciar Servidor Flask en hilo secundario
     t_web = threading.Thread(target=run_server)
