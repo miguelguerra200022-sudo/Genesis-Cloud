@@ -2,11 +2,12 @@ pyTelegramBotAPI
 google-generativeai
 firebase-admin
 flask
-gunicorn
-duckduckgo-search>=6.0.0
+duckduckgo-search
 beautifulsoup4
-requests
-numpy
 textblob
 Pillow
+gTTS
 PyGithub
+psutil
+requests
+numpy
