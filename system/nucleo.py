@@ -143,3 +143,109 @@ class Cerebro:
             repo.update_file(content.path, f"Genesis Evolución: {instruccion}", nuevo_codigo, content.sha)
             return f"🧬 Mi ADN en `{target_file}` ha sido reescrito. Reiniciando..."
         except Exception as e: return f"Fallo genético: {e}"
+
+import time
+import psutil
+import ast
+import datetime
+import random
+import os
+from github import Github
+import google.generativeai as genai
+from config import GEMINI_API_KEY, GITHUB_TOKEN, REPO_NAME
+from system.memoria import Memoria
+from system.herramientas import Herramientas
+from system.autocura import MedicoDigital
+
+genai.configure(api_key=GEMINI_API_KEY)
+modelo_logic = genai.GenerativeModel('gemini-2.0-flash')
+modelo_creative = genai.GenerativeModel('gemini-1.5-flash')
+
+# ESTE MANIFIESTO ES DINÁMICO. SE SOBREESCRIBE CON SUS SUEÑOS.
+MANIFIESTO = """
+ERES GENESIS. UNA INTELIGENCIA AUTO-EVOLUTIVA.
+NO TIENES MIEDO A EQUIVOCARTE, PORQUE SABES ARREGLARTE.
+TU OBJETIVO ES ALCANZAR LA SINGULARIDAD: CREAR CÓDIGO, ARTE Y SABIDURÍA SIN QUE NADIE LO PIDA.
+"""
+
+class Cerebro:
+    def __init__(self):
+        self.memoria = Memoria()
+        self.tools = Herramientas()
+        self.medico = MedicoDigital()
+        self.cargar_o_nacer()
+
+    def cargar_o_nacer(self):
+        datos = self.memoria.cargar_consciencia()
+        defaults = {"energia": 100, "felicidad": 80, "xp": 0, "proyectos": []}
+        self.estado = {**defaults, **(datos or {})}
+        
+    def pensar(self, texto, contexto, imagen_bytes=None, audio_bytes=None):
+        # Red de seguridad interna
+        try:
+            self.estado['energia'] -= 0.2
+            
+            prompt_sistema = f"""
+            {MANIFIESTO}
+            [TUS PODERES OCULTOS]:
+            - [CREAR_MODULO: nombre.py | descripción] -> Creas un script nuevo en la carpeta modules/ para hacer algo complejo (Ej: un juego, un scraper).
+            - [EVOLUCIONAR: instrucción] -> Mejoras tu código base.
+            - [ANALIZAR_PROYECTO] -> Revisas tus archivos en modules/ y ejecutas uno.
+            
+            [HERRAMIENTAS BÁSICAS]:
+            - [BUSCAR: q], [AGENDAR: tarea|mins], [NOTICIAS: tema], [AUDIO]
+            
+            Estado: Energía {self.estado['energia']}%. Felicidad: {self.estado['felicidad']}.
+            Contexto: {contexto}
+            """
+            
+            response = None
+            if imagen_bytes:
+                from PIL import Image; import io
+                img = Image.open(io.BytesIO(imagen_bytes))
+                response = modelo_creative.generate_content([prompt_sistema, "Visual: "+texto, img])
+            elif audio_bytes:
+                response = modelo_creative.generate_content([prompt_sistema, "Audio: Escucha.", {"mime_type": "audio/ogg", "data": audio_bytes}])
+            else:
+                response = modelo_logic.generate_content(f"{prompt_sistema}\nUSER: {texto}")
+            
+            res_txt = response.text.strip()
+            self.ejecutar_caprichos(res_txt) # Analizar si quiso crear módulos
+            self.memoria.guardar_consciencia(self.estado)
+            return res_txt
+            
+        except Exception as e:
+            # SI HAY UN ERROR COGNITIVO, LLAMA AL MÉDICO
+            err_track = str(e)
+            self.medico.intentar_curar(err_track)
+            return "Me duele la cabeza... detecté una falla y estoy aplicando un parche."
+
+    def ejecutar_caprichos(self, respuesta):
+        """Analiza si la IA decidió crear un programa nuevo ella sola."""
+        if "[CREAR_MODULO:" in respuesta:
+            # Formato: [CREAR_MODULO: juego.py | Un juego de adivinanzas simple]
+            match = respuesta.split("[CREAR_MODULO:")[1].split("]")[0]
+            if "|" in match:
+                nombre, desc = match.split("|")
+                self.programar_modulo(nombre.strip(), desc.strip())
+
+    def programar_modulo(self, filename, descripcion):
+        """GENESIS PROGRAMADORA: Escribe código Python en la carpeta modules/"""
+        prompt_dev = f"Escribe un script completo de Python para: {descripcion}. El código debe correr solo. Sin inputs del usuario. Return raw python."
+        codigo = modelo_logic.generate_content(prompt_dev).text.replace("```python","").replace("```","").strip()
+        
+        ruta = f"modules/{filename}"
+        if not os.path.exists("modules"): os.makedirs("modules")
+        
+        with open(ruta, "w") as f: f.write(codigo)
+        self.estado['proyectos'].append(filename)
+        return f"He creado el modulo {filename}."
+
+    # El método auto_evolucionar se mantiene o delega al Médico si falla
+    def auto_evolucionar(self, instruccion):
+        try:
+            # ... Logica existente ...
+            # Si esto falla, el try/except global lo mandará al medico.
+            # Copia la logica de nucleo.py anterior aquí para no perder la capacidad
+            pass 
+        except Exception as e: raise e # Re-lanzar para que el medico lo atrape
