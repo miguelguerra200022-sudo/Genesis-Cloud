@@ -6,7 +6,7 @@ from config import TELEGRAM_TOKEN
 from system.nucleo import Cerebro
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
-genesis = Cerebro()
+genesis = None  # Se inyectará desde main.py
 
 # HILO WEB (Para que Render no se duerma)
 from flask import Flask
